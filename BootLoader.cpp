@@ -31,7 +31,6 @@ bool CBootLoader::ReceiveTask(void)
     char Buff[255];
     RxFrameValid=false;
     BuffLen = ReadPort((char*)Buff, (sizeof(Buff) - 10));
-
     if(BuffLen) BuildRxFrame((unsigned char*)Buff, BuffLen);
     if(RxFrameValid)
     {
@@ -337,6 +336,7 @@ bool CBootLoader::SendCommand(char cmd, unsigned short Retries, unsigned short D
         int msstep = TxRetryDelay;
         while(!ComPort.bytesAvailable() && msstep--) usleep(1000);
         usleep(10000);
+
        if(ReceiveTask())
             return true;
     }//while(Retries)
@@ -375,21 +375,21 @@ void CBootLoader::OpenPort(uint8_t portType)
 {
 
     PortSelected = portType;
-    switch(portType)
-    {
-    case USB:
+//    switch(portType)
+//    {
+//    case USB:
 
-        break;
+//        break;
 
-    case COM:
+//    case COM:
         ComPort.OpenComPort();
-        break;
+//        break;
 
-    case ETH:
+//    case ETH:
 
-        break;
+//        break;
 
-    }
+//    }
 
 }
 
@@ -404,18 +404,18 @@ bool CBootLoader::isPortOpen(uint8_t PortType)
 {
     bool result;
 
-    switch(PortType)
-    {
-    case USB:
-        break;
+//    switch(PortType)
+//    {
+//    case USB:
+//        break;
 
-    case COM:
+//    case COM:
         result = ComPort.GetComPortOpenStatus();
-        break;
+//        break;
 
-    case ETH:
-        break;
-    }
+//    case ETH:
+//        break;
+//    }
 
 
     return result;
@@ -431,18 +431,18 @@ bool CBootLoader::isPortOpen(uint8_t PortType)
 void CBootLoader::ClosePort()
 {
 
-    switch(PortSelected)
-    {
-    case USB:
-        break;
+//    switch(PortSelected)
+//    {
+//    case USB:
+//        break;
 
-    case COM:
+//    case COM:
         ComPort.CloseComPort();
-        break;
+//        break;
 
-    case ETH:
-        break;
-    }
+//    case ETH:
+//        break;
+//    }
 }
 
 
@@ -505,15 +505,9 @@ bool CBootLoader::job(int &command,int &baudrate,std::string &fname,std::string 
     bool file_loaded;
     ComPort.setBaudRate(baudrate);
     ComPort.setPortName(pname);
-    if(!fname.empty())
-    {
-        file_loaded = HexManager.LoadHexFile(fname);
-    /*D*/ if(file_loaded) std::cout<<"file opened"<<std::endl;
-    else std::cout<<"file not opened"<<std::endl;
-    }
+
     if(ComPort.OpenComPort())
     {
-
         switch(command)
         {
         case cmdVersion:
@@ -521,31 +515,36 @@ bool CBootLoader::job(int &command,int &baudrate,std::string &fname,std::string 
             this->SendCommand(READ_BOOT_INFO,2,200);
             break;
         case cmdErase:
-            this->SendCommand(ERASE_FLASH,3,1000);
+            this->SendCommand(ERASE_FLASH,3,3000);
             break;
         case cmdVerify:
             if(file_loaded)
-                        this->SendCommand(READ_CRC,3,500);
+                        this->SendCommand(READ_CRC,3,1500);
             break;
         case cmdStartBl:
             printf("init\n");
             fflush(stdout);
             WritePort((const char*)"init\r\n",6);
-            usleep(2000*1000);
+            usleep(1500*1000);
             WritePort((const char*)"\xaa\x55",2);
-            printf("aa 55\n");
+            printf("AA 55\n");
             fflush(stdout);
-            usleep(2000*1000);
+            usleep(3000*1000);
             RxData[0]=0;
             RxData[ReadPort(RxData,100)]=0;
             printf(RxData);
             fflush(stdout);
             break;
         case cmdProgram:
+            if(!fname.empty())
+            {
+                file_loaded = HexManager.LoadHexFile(fname);
+            }
             if(file_loaded)
             {
+
                 HexManager.ResetHexFilePointer();
-                SendCommand(ERASE_FLASH,3,1000);
+                SendCommand(ERASE_FLASH,5,1000);
                 usleep(500*1000);
                 for(;HexManager.HexCurrLineNo< HexManager.HexTotalLines;)
                 {
@@ -564,8 +563,17 @@ bool CBootLoader::job(int &command,int &baudrate,std::string &fname,std::string 
             break;
         }
     }
-
+    ClosePort();
 }
+/*
+Request:
 
+ 01 10 01 21 10 10 04                              ...!...
+
+Answer:
+
+ 01 10 01 10 01 00 10 01 10 04 04                  ...........
+
+  */
 
 /*******************End of file**********************************************/

@@ -31,12 +31,15 @@ bool CComPort::OpenComPort()
      bytes_read    = 0;     // Number of bytes read from port
      bytes_written = 0;    // Number of bytes written to the port
      comPortHandle = open(portname.c_str(), O_RDWR | O_NOCTTY | O_NDELAY);
-    tcgetattr(comPortHandle,&newtio);
-    newtio.c_cflag =  CS8 ;
+    //tcgetattr(comPortHandle,&newtio);
+    newtio.c_cflag = CS8;
+    newtio.c_lflag =0;//&= ~(ICANON | ECHO | ECHOE | ISIG);
     cfsetospeed(&newtio,lstBaud[baudrate_n]);
     cfsetispeed(&newtio,lstBaud[baudrate_n]);
     tcflush(comPortHandle, TCIFLUSH);
     tcsetattr(comPortHandle,TCSANOW,&newtio);
+
+    fcntl(comPortHandle, F_SETFL, 0);
 
       if (comPortHandle  <0)
       {
@@ -77,8 +80,8 @@ bool CComPort::OpenComPort(std::string &pname, unsigned int baud)
 void CComPort::CloseComPort(void)
 {
 
-			fcntl(comPortHandle, F_SETFL, 0);		
-                        comPortHandle = 0;
+    close(comPortHandle);
+    comPortHandle = 0;
 }
 
 
@@ -92,6 +95,7 @@ void CComPort::CloseComPort(void)
  *****************************************************************************/
 void CComPort::SendComPort(char *buffer, uint16_t bufflen)
 {
+    fcntl(comPortHandle, F_SETFL, 0);
 	bytes_written = write(comPortHandle,buffer,bufflen);
 
 }
