@@ -1,7 +1,9 @@
 #pragma once
+
 #include "Hex.h"
 #include "ComPort.h"
 #include "stdint.h"
+
 // Notify message IDs
 #define WM_USER_BOOTLOADER_RESP_OK WM_USER+1
 #define WM_USER_BOOTLOADER_NO_RESP WM_USER+2
@@ -11,40 +13,12 @@
 #define RE_TRY 1
 
 
-
+/*alter*/
 static const char *txtCmd[] = {"version","erase","check","program","run","startbl"};
-enum {
-	cmdVersion,
-	cmdErase,
-	cmdVerify,
-	cmdProgram,
-	cmdRun,
-    cmdStartBl,
-	CMD_TXT_MAX
-};
 
-
-// Commands
-typedef enum
-{
-	READ_BOOT_INFO = 1,
-	ERASE_FLASH, 
-	PROGRAM_FLASH,
-	READ_CRC,
-	JMP_TO_APP
-	
-}T_COMMANDS;	
-
-typedef enum
-{
-	USB,
-	COM,
-	ETH
-}T_PORTTYPE;
-	
 
 // Main Bootloader class
-class CBootLoader
+class BootLoader
 {
 
 private:
@@ -62,18 +36,37 @@ private:
 	unsigned short TxRetryDelay;
 	CHexManager HexManager;
 	bool ResetHexFilePtr;
-    pthread_t thread;
+    //pthread_t thread;
     uint8_t PortSelected;
 	void WritePort(char *buffer, int bufflen);
 	unsigned short ReadPort(char *buffer, int bufflen);
 
 public:
 
+    typedef enum {
+        jobVersion,
+        jobErase,
+        jobVerify,
+        jobProgram,
+        jobRun,
+        jobStartBl,
+        JobsCount,
+        jobNothing
+    }Jobs;
+
+    // Commands
+    typedef enum    {
+        READ_BOOT_INFO = 1,
+        ERASE_FLASH,
+        PROGRAM_FLASH,
+        READ_CRC,
+        JMP_TO_APP
+    }Commands;
+
 	CComPort ComPort;
 		
 	// Constructor
-	CBootLoader()
-	{
+    BootLoader()	{
 		// Initialization of some flags and variables
 		RxFrameValid = false;
 		NoResponseFromDevice = false;
@@ -83,12 +76,12 @@ public:
 	}
 
 	// Destructor
-	~CBootLoader()
-	{
+    ~BootLoader()	{
 
 	}
 
-    bool job(int &command,int &baudrate,std::string &fname,std::string &pname);
+    bool runJob(Jobs job, BaudRate_t baudrate
+                ,const std::string &fname,const std::string &pname);
 	void TransmitTask(void);
     bool ReceiveTask(void);    
 	bool SendCommand(char cmd, unsigned short Retries, unsigned short RetryDelayInMs);	
@@ -105,8 +98,6 @@ public:
     bool isPortOpen(uint8_t PortType);
     void ClosePort();
     bool NotifyDeviceChange(uint8_t  portType, char *devPath);    
-
-	
 };
 
 

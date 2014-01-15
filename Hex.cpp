@@ -4,32 +4,33 @@
 #include <cstdlib>
 #include <stdio.h>
 
+#include "config.h"
 #include "ComPort.h"
 #include "Hex.h"
 #include "BootLoader.h"
 
 #ifdef _DEBUG
-#define new DEBUG_NEW
-#undef THIS_FILE
-static char THIS_FILE[] = __FILE__;
+    #define new DEBUG_NEW
+    #undef THIS_FILE
+    static const char THIS_FILE[] = __FILE__;
 #endif
 
 // Virtual Flash.
-#define KB (1024)
-#define MB (KB*KB)
+#define KB      (1024)
+#define MB      (KB*KB)
 
 // 5 MB flash
 static unsigned char VirtualFlash[5*MB]; 
 
-#define BOOT_SECTOR_BEGIN 0x9FC00000
-#define APPLICATION_START 0x9D000000
-#define PA_TO_VFA(x)	(x-APPLICATION_START)
-#define PA_TO_KVA0(x)   (x|0x80000000)
+#define BOOT_SECTOR_BEGIN   (0x9FC00000)
+#define APPLICATION_START   (0x9D000000)
+#define PA_TO_VFA(x)        (x - APPLICATION_START)
+#define PA_TO_KVA0(x)       (x | 0x80000000)
 
-#define DATA_RECORD 		0
-#define END_OF_FILE_RECORD 	1
-#define EXT_SEG_ADRS_RECORD 2
-#define EXT_LIN_ADRS_RECORD 4
+#define DATA_RECORD 		(0)
+#define END_OF_FILE_RECORD 	(1)
+#define EXT_SEG_ADRS_RECORD (2)
+#define EXT_LIN_ADRS_RECORD (4)
 
 
 
@@ -67,14 +68,12 @@ bool CHexManager::LoadHexFile(const std::string &fname)
 	}
 	else
 	{
-
 		HexTotalLines = 0;
 		while(!feof(HexFilePtr))
 		{
 			fgets(HexRec, sizeof(HexRec), HexFilePtr);
 			HexTotalLines++;
 		}
-
 	}
 
 	return true;

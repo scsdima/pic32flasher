@@ -1,7 +1,10 @@
+#include <string>
+
+#include "config.h"
 #include "ComPort.h"
 #include "Hex.h"
 #include "BootLoader.h"
-#include <string>
+#include "simple_crypt.h"
 
 
 #ifdef _DEBUG
@@ -12,8 +15,14 @@
 #define EOT 04
 #define DLE 16
 
+#ifdef __UNIX___
+    #define SLEEP(_X_) usleep((_X_)*1000)
+#endif
+#ifdef __WIN32__
+    #define SLEEP(_X_) Sleep(_X_)
+#endif
 
-
+char Buff[1000];
 
 
 /****************************************************************************
@@ -24,7 +33,7 @@
  * \param
  * \return
  *****************************************************************************/
-bool CBootLoader::ReceiveTask(void)
+bool BootLoader::ReceiveTask(void)
 {
     bool res=false;
     unsigned short BuffLen;
@@ -65,7 +74,7 @@ bool CBootLoader::ReceiveTask(void)
  * \param
  * \return
  *****************************************************************************/
-void CBootLoader::HandleNoResponse(void)
+void BootLoader::HandleNoResponse(void)
 {
     // Handle no response situation depending on the last sent command.
     switch(LastSentCommand)
@@ -94,7 +103,7 @@ void CBootLoader::HandleNoResponse(void)
  * \param
  * \return
  *****************************************************************************/
-void CBootLoader::HandleResponse(void)
+void BootLoader::HandleResponse(void)
 {
     unsigned char cmd = RxData[0];
     char majorVer = RxData[3];
@@ -129,7 +138,7 @@ void CBootLoader::HandleResponse(void)
  * \param
  * \return
  *****************************************************************************/
-void CBootLoader::BuildRxFrame(unsigned char *buff, unsigned short buffLen)
+void BootLoader::BuildRxFrame(unsigned char *buff, unsigned short buffLen)
 {
 
     static bool Escape = false;
@@ -230,9 +239,9 @@ void CBootLoader::BuildRxFrame(unsigned char *buff, unsigned short buffLen)
  * \param		retryDelayInMs: Delay between retries in milisecond
  * \return
  *****************************************************************************/
-char Buff[1000];
 
-bool CBootLoader::SendCommand(char cmd, unsigned short Retries, unsigned short DelayInMs)
+
+bool BootLoader::SendCommand(char cmd, unsigned short Retries, unsigned short DelayInMs)
 {
 
 
@@ -334,8 +343,8 @@ bool CBootLoader::SendCommand(char cmd, unsigned short Retries, unsigned short D
         TxPacket[TxPacketLen++] = EOT;
         WritePort(TxPacket,TxPacketLen);
         int msstep = TxRetryDelay;
-        while(!ComPort.bytesAvailable() && msstep--) usleep(1000);
-        usleep(10000);
+        while(!ComPort.bytesAvailable() && msstep--) SLEEP(100);
+        SLEEP(10);
 
        if(ReceiveTask())
             return true;
@@ -353,7 +362,7 @@ bool CBootLoader::SendCommand(char cmd, unsigned short Retries, unsigned short D
  * \param
  * \return 16 bit CRC
  *****************************************************************************/
-unsigned short CBootLoader::CalculateFlashCRC(void)
+unsigned short BootLoader::CalculateFlashCRC(void)
 {
     unsigned int StartAddress,  Len;
     unsigned short crc;
@@ -371,25 +380,12 @@ unsigned short CBootLoader::CalculateFlashCRC(void)
  * \param   pid
  * \return
  *****************************************************************************/
-void CBootLoader::OpenPort(uint8_t portType)
+void BootLoader::OpenPort(uint8_t portType)
 {
 
     PortSelected = portType;
-//    switch(portType)
-//    {
-//    case USB:
 
-//        break;
-
-//    case COM:
-        ComPort.OpenComPort();
-//        break;
-
-//    case ETH:
-
-//        break;
-
-//    }
+    ComPort.OpenComPort();
 
 }
 
@@ -400,23 +396,11 @@ void CBootLoader::OpenPort(uint8_t portType)
  * \return true: Port opened.
            false: Port closed.
  *****************************************************************************/
-bool CBootLoader::isPortOpen(uint8_t PortType)
+bool BootLoader::isPortOpen(uint8_t PortType)
 {
     bool result;
 
-//    switch(PortType)
-//    {
-//    case USB:
-//        break;
-
-//    case COM:
         result = ComPort.GetComPortOpenStatus();
-//        break;
-
-//    case ETH:
-//        break;
-//    }
-
 
     return result;
 
@@ -428,21 +412,9 @@ bool CBootLoader::isPortOpen(uint8_t PortType)
  * \param
  * \return
  *****************************************************************************/
-void CBootLoader::ClosePort()
+void BootLoader::ClosePort()
 {
-
-//    switch(PortSelected)
-//    {
-//    case USB:
-//        break;
-
-//    case COM:
         ComPort.CloseComPort();
-//        break;
-
-//    case ETH:
-//        break;
-//    }
 }
 
 
@@ -452,23 +424,10 @@ void CBootLoader::ClosePort()
  * \param Buffer, Len
  * \return
  *****************************************************************************/
-void CBootLoader::WritePort(char *buffer, int bufflen)
+void BootLoader::WritePort(char *buffer, int bufflen)
 {
-
-//    switch(PortSelected)
-//    {
-//    case USB:
-
-//        break;
-
-//    case COM:
         ComPort.SendComPort(buffer, bufflen);
-//        break;
-
-//    case ETH:
-
-//        break;
-//    }
+        ComPort.flush();
 }
 
 
@@ -478,92 +437,107 @@ void CBootLoader::WritePort(char *buffer, int bufflen)
  * \param Buffer, Len
  * \return
  *****************************************************************************/
-unsigned short CBootLoader::ReadPort(char *buffer, int bufflen)
+unsigned short BootLoader::ReadPort(char *buffer, int bufflen)
 {
     int bytesRead;
-//    switch(PortSelected)
-//    {
-//    case USB:
-
-//        break;
-
-//    case COM:
         bytesRead =ComPort.ReadComPort(buffer, bufflen);
-//        break;
-
-//    case ETH:
-
-//        break;
-//    }
 
         return (unsigned short) bytesRead;
 }
 
 
-bool CBootLoader::job(int &command,int &baudrate,std::string &fname,std::string &pname)
+bool BootLoader::runJob( T_JOBS job,BaudRate_t baudrate,const std::string &fname,const std::string &pname)
 {	
-    bool file_loaded;
+    static bool file_loaded=false;
     ComPort.setBaudRate(baudrate);
     ComPort.setPortName(pname);
+    /*loading file if required*/
+    if(!fname.empty())
+    {
+        file_loaded=false;
+        if(fname.find(".hex")){
+            file_loaded = HexManager.LoadHexFile(fname);
+        }
+        else if(fname.find(".bin")){
+            //loadCryptedFile(fname);
+            //file_loaded = HexManager
+        }
+        else {
+
+        }
+    }
 
     if(ComPort.OpenComPort())
     {
-        switch(command)
+        switch(job)
         {
-        case cmdVersion:
+
+        case jobVersion:
 
             this->SendCommand(READ_BOOT_INFO,2,200);
             break;
-        case cmdErase:
+
+
+        case jobErase:
             this->SendCommand(ERASE_FLASH,3,3000);
             break;
-        case cmdVerify:
-            if(file_loaded)
-                        this->SendCommand(READ_CRC,3,1500);
+
+
+        case jobVerify:
+            if(file_loaded){
+                        this->SendCommand(READ_CRC,3,3000);
+            }
             break;
-        case cmdStartBl:
-            printf("init\n");
+
+
+        case jobStartBl:
+            printf("Enetring bootloader...\n");
             fflush(stdout);
-            WritePort((const char*)"init\r\n",6);
-            usleep(1500*1000);
-            WritePort((const char*)"\xaa\x55",2);
-            printf("AA 55\n");
+            WritePort(( char*)"init\r\n",6);
+            SLEEP(500);
+            printf("issuing bl\n");
+            WritePort((char*)"\xaa\x55",2);
+            SLEEP(500);            
+            WritePort((char*)"\xaa\x55",2);
+            SLEEP(500);
+            WritePort((char*)"\xaa\x55",2);
             fflush(stdout);
-            usleep(3000*1000);
+            SLEEP(2000);
             RxData[0]=0;
             RxData[ReadPort(RxData,100)]=0;
             printf(RxData);
             fflush(stdout);
             break;
-        case cmdProgram:
-            if(!fname.empty())
-            {
-                file_loaded = HexManager.LoadHexFile(fname);
-            }
+
+
+        case jobProgram:
+
+
             if(file_loaded)
             {
 
                 HexManager.ResetHexFilePointer();
-                SendCommand(ERASE_FLASH,5,1000);
-                usleep(500*1000);
+                SendCommand(ERASE_FLASH,3,3000);
+                SLEEP(500);
                 for(;HexManager.HexCurrLineNo< HexManager.HexTotalLines;)
                 {
-                    SendCommand(PROGRAM_FLASH,3,200);
-                     printf("%d/%d\r",HexManager.HexTotalLines,HexManager.HexCurrLineNo);
+                    if(!SendCommand(PROGRAM_FLASH,3,200)) break;
+                     printf("uploading:\n%d\t%d\r"
+                            ,HexManager.HexTotalLines,HexManager.HexCurrLineNo);
                      fflush(stdout);
                 }
-                std::cout<<std::endl;
-                usleep(100*1000);
+                SLEEP(100);
                 SendCommand(READ_CRC,3,500);
             }
             else std::cout<<"file not loaded!"<<std::endl;
             break;
-        case cmdRun:
+        case jobRun:
             this->SendCommand(JMP_TO_APP,3,500);
             break;
         }
     }
     ClosePort();
+    return true;
 }
 /*
 Request:
