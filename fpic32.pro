@@ -16,17 +16,16 @@ TEMPLATE = app
 
 
 SOURCES += \
-    Hex.cpp \
     flashp32.cpp \
-    ComPort.cpp \
-    BootLoader.cpp \
     simple_crypt.c \
-    commthread.cpp
+    bootloader.cpp \
+    comport.cpp \
+    hex.cpp \
+    hexfile.cpp
 
 HEADERS += \
-    Hex.h \
-    ComPort.h \
-    BootLoader.h \
-    config.h \
     simple_crypt.h \
-    commthread.h
+    comport.h \
+    hex.h \
+    bootLoader.h \
+    hexfile.h

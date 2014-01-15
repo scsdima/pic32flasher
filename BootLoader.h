@@ -13,33 +13,11 @@
 #define RE_TRY 1
 
 
-/*alter*/
-static const char *txtCmd[] = {"version","erase","check","program","run","startbl"};
-
-
 // Main Bootloader class
 class BootLoader
 {
 
-private:
-	char TxPacket[1000];
-	unsigned short TxPacketLen;
-	char RxData[255];
-	unsigned short RxDataLen;
-	unsigned short RetryCount;
 
-	bool RxFrameValid;
-	unsigned char LastSentCommand;
-	bool NoResponseFromDevice;
-	unsigned int TxState;
-	unsigned short MaxRetry;
-	unsigned short TxRetryDelay;
-	CHexManager HexManager;
-	bool ResetHexFilePtr;
-    //pthread_t thread;
-    uint8_t PortSelected;
-	void WritePort(char *buffer, int bufflen);
-	unsigned short ReadPort(char *buffer, int bufflen);
 
 public:
 
@@ -47,12 +25,16 @@ public:
         jobVersion,
         jobErase,
         jobVerify,
-        jobProgram,
+        jobFlash,
         jobRun,
-        jobStartBl,
+        jobStartBootloader,
+        jobWritePassword,
+        jobWriteId,
         JobsCount,
         jobNothing
     }Jobs;
+
+    typedef enum { SerialPort }PortType;
 
     // Commands
     typedef enum    {
@@ -63,7 +45,7 @@ public:
         JMP_TO_APP
     }Commands;
 
-	CComPort ComPort;
+    ComPort com_port;
 		
 	// Constructor
     BootLoader()	{
@@ -80,11 +62,11 @@ public:
 
 	}
 
-    bool runJob(Jobs job, BaudRate_t baudrate
+    bool runJob(Jobs job, BaudRate baudrate
                 ,const std::string &fname,const std::string &pname);
 	void TransmitTask(void);
     bool ReceiveTask(void);    
-	bool SendCommand(char cmd, unsigned short Retries, unsigned short RetryDelayInMs);	
+	bool SendCommand(char cmd, unsigned short Retries, unsigned short RetryDelayInMs);	    
 	void BuildRxFrame(unsigned char*, unsigned short);
 	void HandleResponse(void);	
 	void StopTxRetries(void);
@@ -94,10 +76,27 @@ public:
 	void HandleNoResponse(void);
 	unsigned short CalculateFlashCRC(void);
 	bool LoadHexFile(void);
-    void OpenPort(uint8_t  portType);
-    bool isPortOpen(uint8_t PortType);
-    void ClosePort();
-    bool NotifyDeviceChange(uint8_t  portType, char *devPath);    
+    void OpenPort(PortType  port);
+    bool isPortOpen(PortType Port);
+    void ClosePort(void);
+
+private:
+    char TxPacket[1000];
+    unsigned short TxPacketLen;
+    char RxData[255];
+    unsigned short RxDataLen;
+    unsigned short RetryCount;
+    bool        RxFrameValid;
+    unsigned char LastSentCommand;
+    bool        NoResponseFromDevice;
+    unsigned int    TxState;
+    unsigned short  MaxRetry;
+    unsigned short  TxRetryDelay;
+    HexManager  hex_manager;
+    bool        ResetHexFilePtr;
+    PortType     port_selected;
+    void    WritePort(char *buffer, int bufflen);
+    unsigned short ReadPort(char *buffer, int bufflen);
 };
 
 

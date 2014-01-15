@@ -1,37 +1,7 @@
-#include "config.h"
-
 #include "ComPort.h"
 
-#ifdef __UNIX__
-    #include <termios.h>
-    #include <sys/ioctl.h>
-#endif
-#ifndef _POSIX_SOURCE
-    #define _POSIX_SOURCE
-#endif
-#ifdef __WIN32__
-    #include "windows.h"
-#endif
 
-#include <unistd.h>
-#include <iostream>
-#include <string>
-#include <cstring>
-#include <cstdlib>
-
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-
-
-#ifdef _DEBUG
-    #define new DEBUG_NEW
-    #undef THIS_FILE
-    static char THIS_FILE[] = __FILE__;
-#endif
-
-bool CComPort::OpenComPort()
+bool ComPort::OpenComPort(void)
 {    
 
 #ifdef __UNIX__
@@ -77,15 +47,13 @@ bool CComPort::OpenComPort()
                   NULL);
 
       // Open COM port
-      if (comPortHandle== INVALID_HANDLE_VALUE)
-      {
+      if (comPortHandle== INVALID_HANDLE_VALUE)      {
           // error processing code goes here
-          std::cerr<<"Not able to open com port!"<<portname<<std::endl;
+          std::cerr<<"Can't open serial port!"<<portname<<std::endl;
           comPortHandle = NULL;
 
       }
-      else
-      {          
+      else      {          
                  // Set timeouts in milliseconds
           CommTimeouts.ReadIntervalTimeout         = 0;
           CommTimeouts.ReadTotalTimeoutMultiplier  = 0;
@@ -101,7 +69,7 @@ bool CComPort::OpenComPort()
           GetCommState(comPortHandle, &comSettings);
 
 
-          comSettings.BaudRate = Baud_val[baudrate_n];
+          comSettings.BaudRate = (DWORD)baudrate;
           comSettings.StopBits = ONESTOPBIT;
           comSettings.ByteSize = 8;
           comSettings.Parity   = NOPARITY;   // No Parity
@@ -130,14 +98,11 @@ bool CComPort::OpenComPort()
  * \param 
  * \return         Opens the com port
  *****************************************************************************/
-bool CComPort::OpenComPort(std::string &pname, unsigned int baud)
-{    
-	portname = pname;
-    baudrate_n = baud;
+bool ComPort::OpenComPort(const std::string &portname, BaudRate baudrate){
+    this->portname = portname;
+    this->baudrate = baudrate;
     return OpenComPort();
 }
-
-
 
 /****************************************************************************
  * Close com port
@@ -147,9 +112,7 @@ bool CComPort::OpenComPort(std::string &pname, unsigned int baud)
  * \param 
  * \return         
  *****************************************************************************/
-void CComPort::CloseComPort(void)
-{
-
+void ComPort::CloseComPort(void){
     #ifdef __UNIX__
         close(comPortHandle);
     #endif
@@ -169,17 +132,16 @@ void CComPort::CloseComPort(void)
  * \param 
  * \return         
  *****************************************************************************/
-void CComPort::SendComPort(char *buffer, uint16_t bufflen)
-{
+void ComPort::SendComPort(char *data, size_t datasize){
 #ifdef __UNIX__
     fcntl(comPortHandle, F_SETFL, 0);
-	bytes_written = write(comPortHandle,buffer,bufflen);
+    bytes_written = write(comPortHandle,data,datasize);
 #endif
 #ifdef __WIN32__
     (void)WriteFile(comPortHandle,              // Handle
-               &buffer[0],      // Outgoing data
-               bufflen,              // Number of bytes to write
-               &bytes_written,  // Number of bytes written
+               &data[0],      // Outgoing data
+               datasize,              // Number of bytes to write
+               (PDWORD)&bytes_written,  // Number of bytes written
                NULL);
 #endif
 
@@ -193,20 +155,18 @@ void CComPort::SendComPort(char *buffer, uint16_t bufflen)
  * \param 
  * \return  Number of bytes read.       
  *****************************************************************************/
-int CComPort::ReadComPort(char* buffer, uint16_t MaxLen)
-{
-
+int ComPort::ReadComPort(char* data, size_t datasize){
 #ifdef __UNIX__
-    bytes_read = read (comPortHandle, buffer, MaxLen);
+    bytes_read = read (comPortHandle, data, datasize);
     if(bytes_read<0)
         return 	0;
     return bytes_read;
 #endif
 #ifdef __WIN32__
     (void)ReadFile(comPortHandle,   // Handle
-                buffer,            // Incoming data
-                MaxLen,                  // Number of bytes to read
-                (unsigned long *)&RxCount,          // Number of bytes read
+                &data[0],            // Incoming data
+                datasize,                  // Number of bytes to read
+                (PDWORD)&RxCount,          // Number of bytes read
                 NULL);
 
         return RxCount;
@@ -215,8 +175,7 @@ int CComPort::ReadComPort(char* buffer, uint16_t MaxLen)
 	
 }
 
-int CComPort::bytesAvailable(void)
-{
+int ComPort::bytesAvailable(void){
 #ifdef __UNIX__
     int bytesAv;
     if(ioctl(comPortHandle, FIONREAD, &bytesAv)<0) bytesAv=0;
@@ -225,16 +184,22 @@ int CComPort::bytesAvailable(void)
 #ifdef __WIN32__
     COMSTAT stat;
       DWORD dwErrors;
-      if (!ClearCommError(comPortHandle, &dwErrors, &stat))
-      {
+      if (!ClearCommError(comPortHandle, &dwErrors, &stat))      {
         return 0;
       }
     return stat.cbInQue;
 #endif
 }
 
-void CComPort::flush()
-{
+/****************************************************************************
+ * Flush unsent data
+ *
+ * \param
+ * \param
+ * \param
+ * \return  void
+ *****************************************************************************/
+void ComPort::flush(void){
     #ifdef __UNIX__
         tcflush(comPortHandle, TCIFLUSH);
     #endif
@@ -246,13 +211,12 @@ void CComPort::flush()
 /****************************************************************************
  * Gets com port status
  *
- * \param  
- * \param   
- * \param 
- * \return  true if com port is up and running      
+ * \param
+ * \param
+ * \param
+ * \return  true if com port is up and running
  *****************************************************************************/
-bool CComPort::GetComPortOpenStatus(void)
-{
+bool ComPort::GetComPortOpenStatus(void){
     return (comPortHandle != 0);
 
 }

@@ -4,7 +4,6 @@
 #include <cstdlib>
 #include <stdio.h>
 
-#include "config.h"
 #include "ComPort.h"
 #include "Hex.h"
 #include "BootLoader.h"
@@ -20,7 +19,8 @@
 #define MB      (KB*KB)
 
 // 5 MB flash
-static unsigned char VirtualFlash[5*MB]; 
+static unsigned char VirtualFlash[5*MB];
+static unsigned char virtual_file[5*MB];
 
 #define BOOT_SECTOR_BEGIN   (0x9FC00000)
 #define APPLICATION_START   (0x9D000000)
@@ -32,7 +32,9 @@ static unsigned char VirtualFlash[5*MB];
 #define EXT_SEG_ADRS_RECORD (2)
 #define EXT_LIN_ADRS_RECORD (4)
 
+#define READ_FILE_TO_MEMORY  (1)
 
+static char Ascii[1000];
 
 /**
  * Static table used for the table_driven implementation.
@@ -43,7 +45,6 @@ static const unsigned short crc_table[16] =
     0x8108, 0x9129, 0xa14a, 0xb16b, 0xc18c, 0xd1ad, 0xe1ce, 0xf1ef
 };
 
-
 /****************************************************************************
  * Loads hex file
  *
@@ -52,30 +53,22 @@ static const unsigned short crc_table[16] =
  * \param 
  * \return  true if hex file loads successfully      
  *****************************************************************************/
-bool CHexManager::LoadHexFile(const std::string &fname)
+bool HexManager::LoadHexFile(const std::string &fname)
 {
-	int iRet;
 	char HexRec[255];
-
-    HexFileNamePath =fname;
-	// Open file
+    HexFileNamePath =fname;	
     HexFilePtr = fopen(HexFileNamePath.c_str(), "r");
-
-	if(HexFilePtr == NULL)
-	{
-		// Failed to open hex file.
-		return false;
+	if(HexFilePtr == NULL)	{
+        return false;		// Failed to open hex file.
 	}
-	else
-	{
+	else	{
 		HexTotalLines = 0;
-		while(!feof(HexFilePtr))
-		{
+        /*calculating number of lines in file*/
+		while(!feof(HexFilePtr))		{
 			fgets(HexRec, sizeof(HexRec), HexFilePtr);
 			HexTotalLines++;
 		}
 	}
-
 	return true;
 }
 
@@ -88,25 +81,20 @@ bool CHexManager::LoadHexFile(const std::string &fname)
  * \param 
  * \return Length of the hex record in bytes.  
  *****************************************************************************/
-static char Ascii[1000];
-unsigned short CHexManager::GetNextHexRecord(char *HexRec, unsigned int BuffLen)
+
+unsigned short HexManager::GetNextHexRecord(char *HexRec, unsigned int BuffLen)
 {
 	unsigned short len = 0;
-	
-	if(!feof(HexFilePtr))
+    if(!feof(HexFilePtr))
 	{
 		fgets(Ascii, BuffLen, HexFilePtr);
-
-		if(Ascii[0] != ':')
-		{
+		if(Ascii[0] != ':')		{
 			// Not a valid hex record.
 			return 0;
 		}
 		// Convert rest to hex.
 		len = ConvertAsciiToHex((void *)&Ascii[1], (void *)HexRec);
-
-		HexCurrLineNo++;
-		
+		HexCurrLineNo++;		
 	}	
 	return len;
 }
@@ -119,15 +107,13 @@ unsigned short CHexManager::GetNextHexRecord(char *HexRec, unsigned int BuffLen)
  * \param 
  * \return  True if resets file pointer.     
  *****************************************************************************/
-bool CHexManager::ResetHexFilePointer(void)
+bool HexManager::ResetHexFilePointer(void)
 {
 	// Reset file pointer.
-	if(HexFilePtr == NULL)
-	{
+	if(HexFilePtr == NULL)	{
 		return false;
 	}
-	else
-	{
+	else	{
 		fseek(HexFilePtr, 0, 0);
 		HexCurrLineNo = 0;
 		return true;
@@ -143,8 +129,7 @@ bool CHexManager::ResetHexFilePointer(void)
  * \param 
  * \return  Number of bytes in Hex record(Hex format)    
  *****************************************************************************/
-unsigned short CHexManager::ConvertAsciiToHex(void *VdAscii, void *VdHexRec)
-{
+unsigned short HexManager::ConvertAsciiToHex(void *VdAscii, void *VdHexRec){
     char temp[5] = {'0','x',0, 0, 0};
 	unsigned int i = 0;
 	char *Ascii;
@@ -153,8 +138,7 @@ unsigned short CHexManager::ConvertAsciiToHex(void *VdAscii, void *VdHexRec)
 	Ascii = (char *)VdAscii;
 	HexRec = (char *)VdHexRec;
 
-	while(1)
-	{
+	while(1)	{
 		temp[2] = Ascii[i++];
 		temp[3] = Ascii[i++];
         if((temp[2] == 0) || (temp[3] == 0))
@@ -183,11 +167,11 @@ unsigned short CHexManager::ConvertAsciiToHex(void *VdAscii, void *VdHexRec)
  * \param  crc : Pointer to CRC
  * \return      
  *****************************************************************************/
-void CHexManager::VerifyFlash(unsigned int* StartAdress, unsigned int* ProgLen, unsigned short* crc)
+void HexManager::VerifyFlash(unsigned int* StartAdress, unsigned int* ProgLen, unsigned short* crc)
 {
 	unsigned short HexRecLen;
 	char HexRec[255];
-	T_HEX_RECORD HexRecordSt;
+    T_HEX_RECORD HexRecordSt={0};
 	unsigned int VirtualFlashAdrs;
 	unsigned int ProgAddress;
 	
@@ -272,7 +256,7 @@ void CHexManager::VerifyFlash(unsigned int* StartAdress, unsigned int* ProgLen, 
  * \param len		Number of bytes in the \a data buffer.
  * \return         The updated crc value.
  *****************************************************************************/
-unsigned short CHexManager::CalculateCrc(char *data, unsigned int len)
+unsigned short HexManager::CalculateCrc(char *data, unsigned int len)
 {
     unsigned int i;
     unsigned short crc = 0;

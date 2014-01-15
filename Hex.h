@@ -6,11 +6,14 @@
 #include <cstring>
 #include <cstdlib>
 #include <stdio.h>
+#include "hexfile.h"
+
+using namespace std;
 
 typedef struct 
 {
 	unsigned char RecDataLen;
-	unsigned int Address;
+    unsigned int Address;
 	unsigned int MaxAddress;
 	unsigned int MinAddress;
 	unsigned char RecType;
@@ -20,21 +23,17 @@ typedef struct
 	unsigned int ExtLinAddress;
 }T_HEX_RECORD;
 
-
 // Hex Manager class
-class CHexManager
+class HexManager
 {
 private:
 
     std::string HexFileNamePath;
 	FILE *HexFilePtr;
 
-	
-	
-
 public:
-	unsigned int HexTotalLines;
-	unsigned int HexCurrLineNo;
+    unsigned int HexTotalLines;
+    unsigned int HexCurrLineNo;
 	bool ResetHexFilePointer(void);
     bool LoadHexFile(const std::string &);
 	unsigned short GetNextHexRecord(char *HexRec, unsigned int BuffLen);
@@ -43,19 +42,14 @@ public:
     static  unsigned short CalculateCrc(char *data, unsigned int len);
 
 	//Constructor
-	CHexManager()
-	{
+    HexManager(){
 		HexFilePtr = NULL;
 	}
 	//Destructor
-	~CHexManager()
-	{
+    ~HexManager()	{
 		// If hex file is open close it.
-		if(HexFilePtr)
-		{
+		if(HexFilePtr)		{
 			fclose(HexFilePtr);
 		}
 	}
-
-
 };
