@@ -36,6 +36,7 @@ static unsigned char virtual_file[5*MB];
 
 static char Ascii[1000];
 
+static HexFile hex_file;
 /**
  * Static table used for the table_driven implementation.
  *****************************************************************************/
@@ -56,16 +57,15 @@ static const unsigned short crc_table[16] =
 bool HexManager::LoadHexFile(const std::string &fname)
 {
 	char HexRec[255];
-    HexFileNamePath =fname;	
-    HexFilePtr = fopen(HexFileNamePath.c_str(), "r");
-	if(HexFilePtr == NULL)	{
-        return false;		// Failed to open hex file.
+    HexFileNamePath =fname;	    
+    if(hex_file.open(HexFileNamePath.c_str(),"r")==false)	{
+        return false;
 	}
 	else	{
 		HexTotalLines = 0;
         /*calculating number of lines in file*/
-		while(!feof(HexFilePtr))		{
-			fgets(HexRec, sizeof(HexRec), HexFilePtr);
+        while(!hex_file.eof()) {
+            hex_file.gets(&HexRec[0], (size_t)sizeof(HexRec));
 			HexTotalLines++;
 		}
 	}
@@ -85,9 +85,9 @@ bool HexManager::LoadHexFile(const std::string &fname)
 unsigned short HexManager::GetNextHexRecord(char *HexRec, unsigned int BuffLen)
 {
 	unsigned short len = 0;
-    if(!feof(HexFilePtr))
+    if(!hex_file.eof())
 	{
-		fgets(Ascii, BuffLen, HexFilePtr);
+        hex_file.gets(Ascii, BuffLen);
 		if(Ascii[0] != ':')		{
 			// Not a valid hex record.
 			return 0;
@@ -107,17 +107,13 @@ unsigned short HexManager::GetNextHexRecord(char *HexRec, unsigned int BuffLen)
  * \param 
  * \return  True if resets file pointer.     
  *****************************************************************************/
-bool HexManager::ResetHexFilePointer(void)
-{
+bool HexManager::ResetHexFilePointer(void){
 	// Reset file pointer.
-	if(HexFilePtr == NULL)	{
-		return false;
-	}
-	else	{
-		fseek(HexFilePtr, 0, 0);
+    if(hex_file.seek( 0, 0) == 0){
 		HexCurrLineNo = 0;
 		return true;
 	}
+    return false;
 }
 
 
@@ -134,23 +130,18 @@ unsigned short HexManager::ConvertAsciiToHex(void *VdAscii, void *VdHexRec){
 	unsigned int i = 0;
 	char *Ascii;
 	char *HexRec;
-
 	Ascii = (char *)VdAscii;
 	HexRec = (char *)VdHexRec;
-
 	while(1)	{
 		temp[2] = Ascii[i++];
 		temp[3] = Ascii[i++];
-        if((temp[2] == 0) || (temp[3] == 0))
-		{
-			// Not a valid ASCII. Stop conversion and break.
-			i -= 2;
+        if((temp[2] == 0) || (temp[3] == 0)){
+            i -= 2;// Not a valid ASCII. Stop conversion and break.
 			break;			
 		}
 		else
-		{
-			// Convert ASCII to hex.
-			sscanf(temp, "%x", HexRec);
+		{			
+            sscanf(temp, "%x", HexRec);// Convert ASCII to hex.
 			HexRec++;			
 		}
 	}
@@ -181,7 +172,7 @@ void HexManager::VerifyFlash(unsigned int* StartAdress, unsigned int* ProgLen, u
 
 	// Start decoding the hex file and write into virtual flash
 	// Reset file pointer.
-    fseek(HexFilePtr, 0, 0);
+    hex_file.seek(0, 0);
 
 	// Reset max address and min address.
 	HexRecordSt.MaxAddress = 0;
@@ -256,13 +247,10 @@ void HexManager::VerifyFlash(unsigned int* StartAdress, unsigned int* ProgLen, u
  * \param len		Number of bytes in the \a data buffer.
  * \return         The updated crc value.
  *****************************************************************************/
-unsigned short HexManager::CalculateCrc(char *data, unsigned int len)
-{
+unsigned short HexManager::CalculateCrc(char *data, unsigned int len){
     unsigned int i;
     unsigned short crc = 0;
-
-    while(len--)
-    {
+    while(len--)    {
         i = (crc >> 12) ^ (*data >> 4);
         crc = crc_table[i & 0x0F] ^ (crc << 4);
         i = (crc >> 12) ^ (*data >> 0);

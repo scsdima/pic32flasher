@@ -1,22 +1,32 @@
 #ifndef HEXFILE_H
 #define HEXFILE_H
+#include "iostream"
+#include "stdint.h"
+#include "stdio.h"
+#include "unistd.h"
 
+using namespace std;
 
 class HexFile{
+
 public:
-    HexFile(const string &physical_filename);
+    HexFile();
     ~HexFile();
-    typedef enum {Filepreload,FileReadDirectly} FileMode;
-    open();
-    gets();
-    seek();
-    read();
-    close();
+    typedef enum {FilePreload,FileReadDirectly} HexFileMode;
+    bool open(const char *f_name,const char *option, HexFileMode f_mode = FileReadDirectly);
+    char *gets(char *data,size_t maxsize);
+    int seek(long int offset ,int origin);
+    int eof();
+    int close();
+    bool isOpened();
+
 private:
-    FileMode mode;
-    string phy_filename;
-    size_t phy_size;
-    size_t phy_position;
-    preloadPhyFile();
+    bool f_opened;
+    FILE *f_p;
+    HexFileMode mode;
+    size_t f_size;
+    size_t f_pos;
+    unsigned char *f_buf;
+    int preloadFile();
 };
 #endif // HEXFILE_H

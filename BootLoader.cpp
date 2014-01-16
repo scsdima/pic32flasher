@@ -40,8 +40,7 @@ bool BootLoader::ReceiveTask(void)
     RxFrameValid=false;
     BuffLen = ReadPort((char*)Buff, (sizeof(Buff) - 10));
     if(BuffLen) BuildRxFrame((unsigned char*)Buff, BuffLen);
-    if(RxFrameValid)
-    {
+    if(RxFrameValid)    {
         // Valid frame is received.
         // Disable further retries.
         RxFrameValid = false;
@@ -49,11 +48,9 @@ bool BootLoader::ReceiveTask(void)
         HandleResponse();
         res=true;
     }
-    else
-    {
+    else    {
         // Retries exceeded. There is no reponse from the device.
-        if(NoResponseFromDevice)
-        {
+        if(NoResponseFromDevice)        {
             // Reset flags
             NoResponseFromDevice = false;
             RxFrameValid = false;
@@ -222,8 +219,7 @@ bool BootLoader::SendCommand(char cmd, unsigned short Retries, unsigned short De
     unsigned short HexRecLen;
     unsigned short totalRecords ;
     NoResponseFromDevice=true;
-    while(Retries--)
-    {
+    while(Retries--)    {
         if(!Retries) this->NoResponseFromDevice=false;
         // Store for later use.
 
@@ -425,27 +421,19 @@ bool BootLoader::runJob(Jobs job,BaudRate baudrate,const std::string &fname,cons
 
         }
     }
-
     if(com_port.OpenComPort())    {
-        switch(job)        {
-
+       switch(job)        {
         case jobVersion:
             this->SendCommand(READ_BOOT_INFO,2,200);
             break;
-
-
         case jobErase:
             this->SendCommand(ERASE_FLASH,3,3000);
             break;
-
-
         case jobVerify:
             if(file_loaded){
                 this->SendCommand(READ_CRC,3,3000);
             }
             break;
-
-
         case jobStartBootloader:
             printf("Enter bootloader...\n");
             fflush(stdout);
@@ -464,7 +452,6 @@ bool BootLoader::runJob(Jobs job,BaudRate baudrate,const std::string &fname,cons
             printf(RxData);
             fflush(stdout);
             break;
-
         case jobFlash:
             if(file_loaded)
             {
@@ -483,17 +470,13 @@ bool BootLoader::runJob(Jobs job,BaudRate baudrate,const std::string &fname,cons
             }
             else std::cout<<"file not loaded!"<<std::endl;
             break;
-
         case jobRun:
             this->SendCommand(JMP_TO_APP,3,500);
             break;
-
         case jobWritePassword:
-            break;
-
+           break;
         case jobWriteId:
             break;
-
         default:
             break;
         }

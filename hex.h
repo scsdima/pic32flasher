@@ -29,7 +29,6 @@ class HexManager
 private:
 
     std::string HexFileNamePath;
-	FILE *HexFilePtr;
 
 public:
     unsigned int HexTotalLines;
@@ -43,13 +42,11 @@ public:
 
 	//Constructor
     HexManager(){
-		HexFilePtr = NULL;
+        //HexFilePtr = NULL;
 	}
 	//Destructor
     ~HexManager()	{
 		// If hex file is open close it.
-		if(HexFilePtr)		{
-			fclose(HexFilePtr);
-		}
+
 	}
 };
