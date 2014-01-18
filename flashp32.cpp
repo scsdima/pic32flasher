@@ -10,17 +10,17 @@
 using namespace std;
 
 /*alter*/
-static const char *const operation_list[] = {"version","erase","check","program","run","startbl","setpsw","setid"};
+static const char *const operation_list[] = {"version","erase","program","run","startbl","setpsw","setid"};
 
 BootLoader::Jobs  findJob(const char str[]){
     BootLoader::Jobs job_n = BootLoader::jobNothing;
     uint8_t i=0;
     for(; i<BootLoader::JobsCount; i++)    {
         if(strcmp(str, (const char*)operation_list[i]) == 0)        {
-            job_n = (BootLoader::Jobs)i;
-            return job_n;
+            job_n = (BootLoader::Jobs)i;            
         }
     }
+    return job_n;
 }
 
 int main( int argc, char *argv[] ) { 
@@ -31,13 +31,15 @@ int main( int argc, char *argv[] ) {
     string filename ="";
     string portname ="COM1";
     uint32_t value;
+    void *data = NULL;
+    bool data_set= false;
 
     if(argc <= 1)    {
         cout<<"*****************************************\n"
            <<"* Microchip PIC32 SerialPort bootloader *\n"
           <<"*****************************************\n"
          <<"use: fp32 <COMMAND> [-p<SerialPort>] [-b<BAUDRATE>]  [-f<FILENAME>] "
-        <<"version,erase,check,program,run,startbl\n" <<endl;
+        <<"version,erase,program,run,startbl\n" <<endl;
         return 0;
     }
 
@@ -51,6 +53,7 @@ int main( int argc, char *argv[] ) {
             switch (str[1]){
             case 'f':/* file */
                 filename = string(&str[2]);
+                data = (void*)&filename;
                 break;
             case 'b':/* baudrate dafault =19200*/                                
                 sscanf(&str[2],"%d",&baudrate);
@@ -59,8 +62,10 @@ int main( int argc, char *argv[] ) {
                 portname = string(&str[2]);
                 break;
             case 'd':/* data data*/
+                data_set =true;
                 value = 0;
                 sscanf(&str[2],"%d",&value);                
+                data = (void*)&value;
                 break;
             default:
                 break;
@@ -70,11 +75,17 @@ int main( int argc, char *argv[] ) {
     }//for
 
     if(job == BootLoader::jobNothing){
-        cout << "Command not recognized" << endl;
+        cout << endl<<"Command not recognized" << endl;
         return -1;
+    }    
+    if(job == BootLoader::jobWriteId ||job == BootLoader::jobWritePassword){
+        if(!data_set) {
+            cout <<endl<<"data not set"<<endl;
+            return (-1);
+        }
     }
     BootLoader bootloader;        
-    bootloader.runJob(job, baudrate, filename, portname);
+    bootloader.runJob(job, baudrate, data, portname);
 
     return 0;
 }

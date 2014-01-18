@@ -1,8 +1,14 @@
 #include "hexfile.h"
 
-HexFile::HexFile(){}
+HexFile::HexFile(){
+    this->f_opened=false;
+    this->f_p=NULL;
+}
 
-HexFile::~HexFile(){}
+HexFile::~HexFile(){
+if(this->f_buf != NULL)
+    delete this->f_buf;
+}
 
 /****************************************************************************
  * Open file
@@ -18,14 +24,12 @@ bool HexFile::open(const char *f_name,const char *option, HexFileMode f_mode ){
     if(this->f_p != NULL ){
         close();
     }
+    this->mode = f_mode;
     if(!isOpened()) {
-    this->f_p = NULL;
-    this->f_opened = false;
     switch (mode) {
     case FilePreload:
         this->f_p = fopen(f_name,option);
-        this->f_opened = (this->f_p != NULL);
-        preloadFile();
+        this->f_opened = preloadFile();
         break;
     case FileReadDirectly:
         this->f_p = fopen(f_name,option);
@@ -33,10 +37,10 @@ bool HexFile::open(const char *f_name,const char *option, HexFileMode f_mode ){
         break;
     default:
         break;
+    }    
     }
     return isOpened();
-    }
-    return false;
+
 }
 
 /****************************************************************************
@@ -51,21 +55,24 @@ char *HexFile::gets(char *data,size_t maxsize){
     if(isOpened()){
         switch (mode) {
         case FilePreload:
-            {
+            {            
             /* reading one line of yext from memory*/
-                size_t pos = this->f_pos;
-                unsigned char ch;
-                while( ch != '\r' && ch != '\n'
-                       && pos < this->f_size && maxsize !=0 ){
-                    data[pos] = this->f_buf[pos];
-                    pos++;
+                long int new_pos = (long int)this->f_pos;
+                long int di=0;
+                while( new_pos < (long int)this->f_size && maxsize !=0 ){
+                    unsigned char ch = this->f_buf[new_pos];
+                    if(ch == '\r' || ch == '\n') break;
+                    data[di++] = ch;
+                    new_pos++;
                     maxsize--;
                 }
-                while( ch == '\r' || ch == '\n'
-                       && pos < this->f_size){
-                    pos++;
+                data[di] = 0;
+                while(new_pos < (long int)this->f_size){
+                    unsigned char ch = this->f_buf[new_pos];
+                    if(ch != '\r'  && ch != '\n')  break;
+                    new_pos++;
                 }
-                this->f_pos += pos+2;
+                this->f_pos = new_pos;
             }
             break;
         case FileReadDirectly:
@@ -90,23 +97,23 @@ int HexFile::seek(long int offset ,int origin){
     if(isOpened()){
         switch (mode) {
         case FilePreload:
-        {
-            size_t new_pos=-1;
+        {            
+            long int new_pos=-1;
             switch(origin){
                 case SEEK_SET:
                     new_pos = offset;
                     break;
                 case SEEK_END:
-                    new_pos = f_size-offset;
+                    new_pos = (long int)f_size-offset;
                     break;
                 case SEEK_CUR:
                     new_pos =(this->f_pos +offset);
                     break;
                 default:break;
             }
-            if( new_pos < this->f_size
+            if( new_pos < (long int)this->f_size
                     && (new_pos >= 0))  {
-                this->f_pos =new_pos;
+                this->f_pos = new_pos;
                 result = 0;
             }
         }
@@ -133,17 +140,17 @@ int HexFile::close(){
         switch (mode) {
         case FilePreload:
             delete [] this->f_buf;
-            result = fclose(this->f_p);
+            this->f_buf=NULL;
+            result = 0;
             break;
-        case FileReadDirectly:
+        case FileReadDirectly:            
             result = fclose(this->f_p);
             break;
         default:
             break;
         }
-    }
-    this->f_p  = NULL;
-    this->f_opened = true;
+    }    
+    this->f_opened = false;
     return result;
 }
 
@@ -154,9 +161,10 @@ int HexFile::close(){
  * \return  int if ok returns 0
  *****************************************************************************/
 int HexFile::eof(){
-    int result;
+    int result = -1;
     switch (mode) {
     case FilePreload:
+        result = (this->f_pos >= (long int)this->f_size);
         break;
     case FileReadDirectly:
         result = feof(this->f_p);
@@ -172,7 +180,7 @@ int HexFile::eof(){
  * \param
  * \return    if file is currently opend
  *****************************************************************************/
-bool HexFile::isOpened(){
+bool HexFile::isOpened() const{
     return f_opened;
 }
 
@@ -182,13 +190,20 @@ bool HexFile::isOpened(){
  * \param
  * \return  int if ok returns 0
  *****************************************************************************/
-int HexFile::preloadFile(){
-    int result = -1;
+#include "malloc.h"
+bool HexFile::preloadFile(){
+    bool result = false;
     fseek (this->f_p, 0, SEEK_END);// goto end
-    this->f_size = ftell(this->f_p);
-    this->f_buf = new unsigned char(this->f_size);
-    fread(this->f_buf, this->f_size,1, this->f_p);
+    this->f_size = (size_t)ftell(this->f_p);
+    this->f_buf =new unsigned char[this->f_size];
+    /* set to begining of the file*/
+    fseek (this->f_p, 0, SEEK_SET);
+    /* read all information from file*/
+    result = ((size_t)fread(this->f_buf, 1,this->f_size, this->f_p)==this->f_size);
+    /* physical file we can close*/
     fclose(this->f_p);
-    this->f_pos = 0;
+    this->f_p = 0;
+    /* set to begining of file*/
+    this->f_pos = 0;    
     return result;
 }

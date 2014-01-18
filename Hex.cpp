@@ -57,8 +57,8 @@ static const unsigned short crc_table[16] =
 bool HexManager::LoadHexFile(const std::string &fname)
 {
 	char HexRec[255];
-    HexFileNamePath =fname;	    
-    if(hex_file.open(HexFileNamePath.c_str(),"r")==false)	{
+    HexFileNamePath =fname;
+    if(hex_file.open(HexFileNamePath.c_str(),"r",HexFile::FilePreload)==false)	{
         return false;
 	}
 	else	{

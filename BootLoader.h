@@ -22,16 +22,15 @@ class BootLoader
 public:
 
     typedef enum {
-        jobVersion,
-        jobErase,
-        jobVerify,
-        jobFlash,
-        jobRun,
-        jobStartBootloader,
-        jobWritePassword,
-        jobWriteId,
-        JobsCount,
-        jobNothing
+        jobVersion =0,
+        jobErase= 1,
+        jobFlash= 2,
+        jobRun =3,
+        jobStartBootloader =4,
+        jobWritePassword=5,
+        jobWriteId =6,
+        JobsCount =7,
+        jobNothing =8
     }Jobs;
 
     typedef enum { SerialPort }PortType;
@@ -63,7 +62,7 @@ public:
 	}
 
     bool runJob(Jobs job, BaudRate baudrate
-                ,const std::string &fname,const std::string &pname);
+                ,void *data,const std::string &pname);
 	void TransmitTask(void);
     bool ReceiveTask(void);    
 	bool SendCommand(char cmd, unsigned short Retries, unsigned short RetryDelayInMs);	    
@@ -79,11 +78,14 @@ public:
     void OpenPort(PortType  port);
     bool isPortOpen(PortType Port);
     void ClosePort(void);
+    bool SendByProtocol(uint8_t adr,uint8_t command,uint32_t parameter);
+    bool StartBootloader(void);
+    bool StartProgramming(const string& fname);
 
 private:
-    char TxPacket[1000];
+    unsigned char TxPacket[1000];
     unsigned short TxPacketLen;
-    char RxData[255];
+    unsigned char RxData[255];
     unsigned short RxDataLen;
     unsigned short RetryCount;
     bool        RxFrameValid;
@@ -95,8 +97,8 @@ private:
     HexManager  hex_manager;
     bool        ResetHexFilePtr;
     PortType     port_selected;
-    void    WritePort(char *buffer, int bufflen);
-    unsigned short ReadPort(char *buffer, int bufflen);
+    void    WritePort(unsigned char *buffer, int bufflen);
+    unsigned short ReadPort(unsigned char *buffer, int bufflen);
 };
 
 

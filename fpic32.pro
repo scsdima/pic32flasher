@@ -11,9 +11,11 @@ QT       -= gui
 TARGET = fpic32_cmd
 CONFIG   += console
 CONFIG   -= app_bundle
+SOURCE_DIR = $$PWD
 
 TEMPLATE = app
 
+DESTDIR = $$SOURCE_DIR/bin
 
 SOURCES += \
     flashp32.cpp \

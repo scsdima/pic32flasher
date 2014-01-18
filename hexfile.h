@@ -18,15 +18,15 @@ public:
     int seek(long int offset ,int origin);
     int eof();
     int close();
-    bool isOpened();
+    bool isOpened() const;
 
 private:
     bool f_opened;
     FILE *f_p;
     HexFileMode mode;
     size_t f_size;
-    size_t f_pos;
+    long int f_pos;
     unsigned char *f_buf;
-    int preloadFile();
+    bool preloadFile();
 };
 #endif // HEXFILE_H

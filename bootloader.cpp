@@ -38,7 +38,7 @@ bool BootLoader::ReceiveTask(void)
     unsigned short BuffLen;
     char Buff[255];
     RxFrameValid=false;
-    BuffLen = ReadPort((char*)Buff, (sizeof(Buff) - 10));
+    BuffLen = ReadPort((unsigned char*)Buff, (sizeof(Buff) - 10));
     if(BuffLen) BuildRxFrame((unsigned char*)Buff, BuffLen);
     if(RxFrameValid)    {
         // Valid frame is received.
@@ -74,19 +74,19 @@ void BootLoader::HandleNoResponse(void){
     // Handle no response situation depending on the last sent command.
     switch(LastSentCommand) {
     case READ_BOOT_INFO:
-        std::cout<<"version:";
+        cout<<endl<<"version:";
         break;
     case ERASE_FLASH:
-        std::cout<<"erase:";
+        cout<<endl<<"erase:";
         break;
     case PROGRAM_FLASH:
-        std::cout<<"program:";
+        cout<<endl<<"program:";
         break;
     case READ_CRC:
-        std::cout<<"verify(crc):";
+        cout<<endl<<"verify(crc):";
         break;
     }
-    std::cout<<" doesn't responding"<<std::endl;
+    cout<<endl<<" doesn't responding";
 }
 
 /****************************************************************************
@@ -102,16 +102,15 @@ void BootLoader::HandleResponse(void){
     int8_t majorVer = RxData[3];
     int8_t minorVer = RxData[4];
     switch(cmd)  {
-    case READ_BOOT_INFO:
-        cout<<"version:ok" <<endl;
-        printf("ver:%d.%d\n",majorVer,minorVer);
+    case READ_BOOT_INFO:        
+        cout<<endl<<"ver:"<<(int)majorVer<<"."<<(int)minorVer;
         break;
     case ERASE_FLASH:
-        cout<<"erase:ok" <<endl;
+        cout<<endl<<"flash erased";
         break;
     case READ_CRC:
         // Notify main window that command received successfully.
-        cout<<"verify:ok" <<endl;
+        cout<<endl<<"verified" ;
         break;
     case PROGRAM_FLASH:
         break;
@@ -164,7 +163,7 @@ void BootLoader::BuildRxFrame(unsigned char *buff, unsigned short buffLen){
                 if(RxDataLen > 1)  {
                     crc = (RxData[RxDataLen-2]) & 0x00ff;
                     crc = crc | ((RxData[RxDataLen-1] << 8) & 0xFF00);
-                    crcCalc = HexManager::CalculateCrc(RxData, (RxDataLen-2));
+                    crcCalc = HexManager::CalculateCrc((char*)RxData, (RxDataLen-2));
                     if((crcCalc == crc) && (RxDataLen > 2))  {
                         // CRC matches and frame received is valid.
                         RxFrameValid = true;
@@ -231,12 +230,12 @@ bool BootLoader::SendCommand(char cmd, unsigned short Retries, unsigned short De
         {
         case READ_BOOT_INFO:
             Buff[BuffLen++] = cmd;
-            TxRetryDelay = DelayInMs; // in ms
+            TxRetryDelay = DelayInMs/100; // in ms
             break;
 
         case ERASE_FLASH:
             Buff[BuffLen++] = cmd;
-            TxRetryDelay = DelayInMs; // in ms
+            TxRetryDelay = DelayInMs/100; // in ms
             break;
 
         case JMP_TO_APP:
@@ -260,7 +259,7 @@ bool BootLoader::SendCommand(char cmd, unsigned short Retries, unsigned short De
                 BuffLen = BuffLen + HexRecLen;
                 totalRecords--;
             }
-            TxRetryDelay = DelayInMs; // in ms
+            TxRetryDelay = DelayInMs/100; // in ms
             break;
 
         case READ_CRC:
@@ -276,7 +275,7 @@ bool BootLoader::SendCommand(char cmd, unsigned short Retries, unsigned short De
             Buff[BuffLen++] = (Len >> 24);
             Buff[BuffLen++] =  (char)crc;
             Buff[BuffLen++] =  (char)(crc >> 8);
-            TxRetryDelay = DelayInMs; // in ms
+            TxRetryDelay = DelayInMs/100; // in ms
             break;
 
         default:
@@ -284,7 +283,7 @@ bool BootLoader::SendCommand(char cmd, unsigned short Retries, unsigned short De
             break;
 
         }//switch
-        // Calculate CRC for the frame.
+        // Calculate CRC for the frame.        
         crc = HexManager::CalculateCrc(Buff, BuffLen);
         Buff[BuffLen++] = (char)crc;
         Buff[BuffLen++] = (char)(crc >> 8);
@@ -307,8 +306,7 @@ bool BootLoader::SendCommand(char cmd, unsigned short Retries, unsigned short De
         TxPacket[TxPacketLen++] = EOT;
         WritePort(TxPacket,TxPacketLen);
         int msstep = TxRetryDelay;
-        while(!com_port.bytesAvailable() && msstep--) SLEEP(100);
-        SLEEP(10);
+        while(!com_port.bytesAvailable() && msstep--) SLEEP(100);        
 
        if(ReceiveTask())
             return true;
@@ -378,8 +376,8 @@ void BootLoader::ClosePort(){
  * \param Buffer, Len
  * \return
  *****************************************************************************/
-void BootLoader::WritePort(char *buffer, int bufflen){
-        com_port.SendComPort(buffer, bufflen);
+void BootLoader::WritePort(unsigned char *buffer, int bufflen){
+        com_port.SendComPort((char*)buffer, bufflen);
         com_port.flush();
 }
 
@@ -390,10 +388,9 @@ void BootLoader::WritePort(char *buffer, int bufflen){
  * \param Buffer, Len
  * \return
  *****************************************************************************/
-unsigned short BootLoader::ReadPort(char *buffer, int bufflen){
+unsigned short BootLoader::ReadPort(unsigned char *buffer, int bufflen){
     int bytesRead;
-        bytesRead =com_port.ReadComPort(buffer, bufflen);
-
+        bytesRead =com_port.ReadComPort((char*)buffer, bufflen);
         return (unsigned short) bytesRead;
 }
 
@@ -403,87 +400,140 @@ unsigned short BootLoader::ReadPort(char *buffer, int bufflen){
  * \param
  * \return
  *****************************************************************************/
-bool BootLoader::runJob(Jobs job,BaudRate baudrate,const std::string &fname,const std::string &pname){
-    static bool file_loaded=false;
+bool BootLoader::runJob(Jobs job,BaudRate baudrate, void *data,const std::string &pname){
+    bool result = false;
     com_port.setBaudRate(baudrate);
     com_port.setPortName(pname);
     /*loading file if required*/
-    if(!fname.empty())    {
-        file_loaded=false;
-        if(fname.find(".hex")){
-            file_loaded = hex_manager.LoadHexFile(fname);
-        }
-        else if(fname.find(".bin")){
-            //loadCryptedFile(fname);
-            //file_loaded = HexManager
-        }
-        else {
 
-        }
-    }
-    if(com_port.OpenComPort())    {
+    if(com_port.OpenComPort())    {        
        switch(job)        {
+
         case jobVersion:
             this->SendCommand(READ_BOOT_INFO,2,200);
+            result = true;
             break;
+
         case jobErase:
             this->SendCommand(ERASE_FLASH,3,3000);
+            result = true;
             break;
-        case jobVerify:
-            if(file_loaded){
-                this->SendCommand(READ_CRC,3,3000);
-            }
-            break;
+
         case jobStartBootloader:
-            printf("Enter bootloader...\n");
-            fflush(stdout);
-            WritePort(( char*)"init\r\n",6);
-            SLEEP(500);
-            printf("issuing bl\n");
-            WritePort((char*)"\xaa\x55",2);
-            SLEEP(500);            
-            WritePort((char*)"\xaa\x55",2);
-            SLEEP(500);
-            WritePort((char*)"\xaa\x55",2);
-            fflush(stdout);
-            SLEEP(2000);
-            RxData[0]=0;
-            RxData[ReadPort(RxData,100)]=0;
-            printf(RxData);
-            fflush(stdout);
+            result = StartBootloader();
             break;
-        case jobFlash:
-            if(file_loaded)
-            {
-                hex_manager.ResetHexFilePointer();
-                SendCommand(ERASE_FLASH,3,3000);
-                SLEEP(500);
-                for(;hex_manager.HexCurrLineNo< hex_manager.HexTotalLines;)
-                {
-                    if(!SendCommand(PROGRAM_FLASH,3,200)) break;
-                     printf("uploading:\n%d\t%d\r"
-                            ,hex_manager.HexTotalLines,hex_manager.HexCurrLineNo);
-                     fflush(stdout);
-                }
-                SLEEP(100);
-                SendCommand(READ_CRC,3,500);
-            }
-            else std::cout<<"file not loaded!"<<std::endl;
+
+        case jobFlash:          
+            result = StartProgramming(*((string*)data));
             break;
+
         case jobRun:
             this->SendCommand(JMP_TO_APP,3,500);
+            result = true;
             break;
+
         case jobWritePassword:
+            {
+               uint32_t value;
+               value = *((uint32_t*)data);
+               result = SendByProtocol(0x01,0xfd,value);
+           }
            break;
+
         case jobWriteId:
+           {
+               uint32_t value;
+               value = *((uint32_t*)data);
+               result = SendByProtocol(0x01,0xfc,value);
+           }
             break;
+
         default:
             break;
         }
     }
     ClosePort();
+    if(result == true){
+        cout<<endl<<"OK";
+    }
+    else {
+        cout<<endl<<"ERROR";
+    }
     return true;
 }
+
+bool BootLoader::StartProgramming(const string& fname){
+    bool file_loaded=false;
+    cout<<fname;
+    if(!fname.empty())    {
+        file_loaded = hex_manager.LoadHexFile(fname);
+    }
+
+     if(file_loaded)
+     {
+         hex_manager.ResetHexFilePointer();
+         SendCommand(ERASE_FLASH,3,3000);
+         SLEEP(500);
+         for(;hex_manager.HexCurrLineNo< hex_manager.HexTotalLines;)
+         {
+             if(!SendCommand(PROGRAM_FLASH,3,200)) break;
+             /* writing to the same line*/
+              cout<<"\r"<<"flashing:\t"<<hex_manager.HexCurrLineNo<<"::"
+                    <<hex_manager.HexTotalLines;
+              /* flush all character in stdout*/
+              fflush(stdout);
+         }
+         SLEEP(100);
+         SendCommand(READ_CRC,3,500);
+     }
+}
+
+bool BootLoader::StartBootloader(void){
+    unsigned char buf[1000];
+    int n;
+    cout<<endl<<"Enter bootloader...";
+    fflush(stdout);
+    WritePort((unsigned char*)"init\r\n",6);
+    SLEEP(500);
+    printf("issuing bl\n");
+    WritePort((unsigned char*)"\xaa\x55",2);
+    SLEEP(500);
+    WritePort((unsigned char*)"\xaa\x55",2);
+    SLEEP(500);
+    WritePort((unsigned char*)"\xaa\x55",2);
+    fflush(stdout);
+    SLEEP(2000);
+    buf[0]=0;
+    n = ReadPort(buf,100);
+    buf[n]=0;
+    cout<<(char*)buf;
+    fflush(stdout);
+    return n>0;
+}
+
+bool BootLoader::SendByProtocol(uint8_t adr,uint8_t command,uint32_t parameter)
+{
+   static unsigned char buf[8];
+   buf[0]= '\xAA';
+   buf[1]= adr;
+
+   buf[3] = command;
+   buf[4] = ((uint8_t*)(&parameter))[0];
+   buf[5] = ((uint8_t*)(&parameter))[1];
+   buf[6] = ((uint8_t*)(&parameter))[2];
+   buf[7] = ((uint8_t*)(&parameter))[3];
+   buf[2] = buf[4]+buf[5]+buf[6]+buf[7]+buf[3];
+   WritePort(buf,8);
+   Sleep(100);
+   int n = ReadPort(buf,8);
+   if(n>0 && buf[3] == command){
+       cout<<"[1]";
+       return true;
+   }
+   return false;
+}
+
+
 /*
 Request:
 
@@ -496,3 +546,4 @@ Answer:
   */
 
 /*******************End of file**********************************************/
+
