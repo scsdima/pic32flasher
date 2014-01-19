@@ -465,9 +465,10 @@ bool BootLoader::runJob(Jobs job,BaudRate baudrate, void *data,const std::string
 bool BootLoader::StartProgramming(const string& fname){
     bool file_loaded=false;
     cout<<fname;
-    if(!fname.empty())    {
-        file_loaded = hex_manager.LoadHexFile(fname);
+    if(fname.empty())    {
+        return false;
     }
+    file_loaded = hex_manager.LoadHexFile(fname);
 
      if(file_loaded)
      {
@@ -478,14 +479,22 @@ bool BootLoader::StartProgramming(const string& fname){
          {
              if(!SendCommand(PROGRAM_FLASH,3,200)) break;
              /* writing to the same line*/
-              cout<<"\r"<<"flashing:\t"<<hex_manager.HexCurrLineNo<<"::"
-                    <<hex_manager.HexTotalLines;
+//              cout<<"\r"<<"flashing:\t"<<hex_manager.HexCurrLineNo<<"::"
+//                    <<hex_manager.HexTotalLines;
+             int progress = (int)((double)hex_manager.HexCurrLineNo)
+                                    /((double)hex_manager.HexTotalLines/100);
+              cout<<"\r"<<"flashing:\t"
+                 <<progress<<"%";
               /* flush all character in stdout*/
               fflush(stdout);
          }
          SLEEP(100);
          SendCommand(READ_CRC,3,500);
      }
+     else{
+         return false;
+     }
+     return true;
 }
 
 bool BootLoader::StartBootloader(void){

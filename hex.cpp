@@ -58,7 +58,11 @@ bool HexManager::LoadHexFile(const std::string &fname)
 {
 	char HexRec[255];
     HexFileNamePath =fname;
-    if(hex_file.open(HexFileNamePath.c_str(),"r",HexFile::FilePreload)==false)	{
+    HexFile::HexFileMode mode = HexFile::FileBin;
+    if(fname.find(".hex")!= string::npos){
+        mode = HexFile::FileHex;
+    }
+    if(hex_file.open(HexFileNamePath.c_str(),mode)==false)	{
         return false;
 	}
 	else	{

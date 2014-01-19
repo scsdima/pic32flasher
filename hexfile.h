@@ -12,8 +12,8 @@ class HexFile{
 public:
     HexFile();
     ~HexFile();
-    typedef enum {FilePreload,FileReadDirectly} HexFileMode;
-    bool open(const char *f_name,const char *option, HexFileMode f_mode = FileReadDirectly);
+    typedef enum {FileBin,FileHex} HexFileMode;
+    bool open(const char *f_name,HexFileMode f_mode = FileHex);
     char *gets(char *data,size_t maxsize);
     int seek(long int offset ,int origin);
     int eof();

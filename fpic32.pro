@@ -19,11 +19,11 @@ DESTDIR = $$SOURCE_DIR/bin
 
 SOURCES += \
     flashp32.cpp \
-    simple_crypt.c \
     bootloader.cpp \
     comport.cpp \
     hex.cpp \
-    hexfile.cpp
+    hexfile.cpp \
+    simple_crypt.cpp
 
 HEADERS += \
     simple_crypt.h \
